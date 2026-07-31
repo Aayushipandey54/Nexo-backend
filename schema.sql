@@ -19,8 +19,13 @@ INSERT INTO public.event_state (id, current_mission, current_stage, event_status
 VALUES (1, 'MISSION_1', 'WAITING', 'ONLINE')
 ON CONFLICT (id) DO NOTHING;
 
--- Enable Realtime for event_state
-ALTER PUBLICATION supabase_realtime ADD TABLE public.event_state;
+-- Enable Realtime for event_state safely
+DO $$ 
+BEGIN 
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.event_state;
+EXCEPTION 
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 3. TEAMS & ACCESS KEYS TABLE
 CREATE TABLE IF NOT EXISTS public.teams (
@@ -42,8 +47,13 @@ INSERT INTO public.teams (team_name, access_key, total_score) VALUES
 ('CESA Titans', 'NXR-D56C', 2400)
 ON CONFLICT (access_key) DO NOTHING;
 
--- Enable Realtime for teams
-ALTER PUBLICATION supabase_realtime ADD TABLE public.teams;
+-- Enable Realtime for teams safely
+DO $$ 
+BEGIN 
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.teams;
+EXCEPTION 
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 4. MISSION 1: MCQ QUESTIONS TABLE
 CREATE TABLE IF NOT EXISTS public.mcq_questions (
@@ -103,8 +113,13 @@ CREATE TABLE IF NOT EXISTS public.submissions (
     submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable Realtime for submissions table so Admin receives live notifications
-ALTER PUBLICATION supabase_realtime ADD TABLE public.submissions;
+-- Enable Realtime for submissions table safely
+DO $$ 
+BEGIN 
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.submissions;
+EXCEPTION 
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 7. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.event_state ENABLE ROW LEVEL SECURITY;
@@ -114,16 +129,36 @@ ALTER TABLE public.wordle_words ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read access
+DROP POLICY IF EXISTS "Public Read Event State" ON public.event_state;
 CREATE POLICY "Public Read Event State" ON public.event_state FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read Questions" ON public.mcq_questions;
 CREATE POLICY "Public Read Questions" ON public.mcq_questions FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read Wordle Words" ON public.wordle_words;
 CREATE POLICY "Public Read Wordle Words" ON public.wordle_words FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read Teams" ON public.teams;
 CREATE POLICY "Public Read Teams" ON public.teams FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read Submissions" ON public.submissions;
 CREATE POLICY "Public Read Submissions" ON public.submissions FOR SELECT USING (true);
 
 -- Allow public insert/update/manage
+DROP POLICY IF EXISTS "Public Insert Submissions" ON public.submissions;
 CREATE POLICY "Public Insert Submissions" ON public.submissions FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public Update Submissions" ON public.submissions;
 CREATE POLICY "Public Update Submissions" ON public.submissions FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Public Manage Questions" ON public.mcq_questions;
 CREATE POLICY "Public Manage Questions" ON public.mcq_questions FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Public Manage Wordle" ON public.wordle_words;
 CREATE POLICY "Public Manage Wordle" ON public.wordle_words FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Public Manage Event State" ON public.event_state;
 CREATE POLICY "Public Manage Event State" ON public.event_state FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Public Manage Teams" ON public.teams;
 CREATE POLICY "Public Manage Teams" ON public.teams FOR ALL USING (true);

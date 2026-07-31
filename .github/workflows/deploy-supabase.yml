@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      # Only trigger when changes are made inside the backend/supabase folder
-      - 'backend/supabase/**'
+      # Only trigger when changes are made inside the supabase folder or workflow file
+      - 'supabase/**'
       - '.github/workflows/deploy-supabase.yml'
 
 jobs:
@@ -24,22 +24,24 @@ jobs:
         with:
           version: latest
 
-      # 3. Apply Pending Database Migrations
-      # This runs supabase db push which checks which migrations have not been applied and runs them
+      # 3. Link Supabase Project
+      - name: Link Supabase Project
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      # 4. Apply Pending Database Migrations
       - name: Release Migrations to Production
         run: |
-          supabase db push --workdir backend --method direct
+          supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          # DB password is required to run migrations directly on the host database
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      # 4. Deploy Supabase Edge Functions
-      # Deploys the Honos router API edge function
+      # 5. Deploy Supabase Edge Functions
       - name: Deploy API Edge Function
         run: |
-          supabase functions deploy api --workdir backend --no-verify-jwt
+          supabase functions deploy api --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+

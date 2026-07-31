@@ -1,0 +1,45 @@
+name: Deploy Supabase Project
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # Only trigger when changes are made inside the backend/supabase folder
+      - 'backend/supabase/**'
+      - '.github/workflows/deploy-supabase.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository code
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      # 2. Setup Supabase CLI
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # 3. Apply Pending Database Migrations
+      # This runs supabase db push which checks which migrations have not been applied and runs them
+      - name: Release Migrations to Production
+        run: |
+          supabase db push --workdir backend --method direct
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          # DB password is required to run migrations directly on the host database
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      # 4. Deploy Supabase Edge Functions
+      # Deploys the Honos router API edge function
+      - name: Deploy API Edge Function
+        run: |
+          supabase functions deploy api --workdir backend --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
